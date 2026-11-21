@@ -1,0 +1,45 @@
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Python
+backend/.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Node / Electron / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-electron/
+frontend/release/
+*.log
+npm-debug.log*
+
+# Workspace user data (keep folder structure via .gitkeep)
+workspace/asset_library/library.db*
+workspace/asset_library/characters/*
+!workspace/asset_library/characters/.gitkeep
+workspace/asset_library/locations/*
+!workspace/asset_library/locations/.gitkeep
+workspace/asset_library/props/*
+!workspace/asset_library/props/.gitkeep
+workspace/asset_library/poses/*
+!workspace/asset_library/poses/.gitkeep
+workspace/asset_library/expressions/*
+!workspace/asset_library/expressions/.gitkeep
+workspace/asset_library/animations/*
+!workspace/asset_library/animations/.gitkeep
+workspace/asset_library/sounds/*/*
+!workspace/asset_library/sounds/*/.gitkeep
+workspace/projects/*
+!workspace/projects/.gitkeep
+
+# Logs & temp
+logs/
+tmp/
+*.tmp

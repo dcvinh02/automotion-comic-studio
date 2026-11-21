@@ -1,0 +1,117 @@
+/* AutoMotion Comic Studio — Centralized Design Token System (Phase 02)
+ * Supports future theming via [data-theme="..."] overrides.
+ */
+
+:root,
+[data-theme='dark-studio'] {
+  /* Layered Charcoal & Dark Neutral Surfaces */
+  --surface-canvas: #0b0c0f;
+  --surface-base: #101216;
+  --surface-panel: #16181e;
+  --surface-elevated: #1c1f27;
+  --surface-header: #1a1d24;
+  --surface-control: #232732;
+  --surface-control-hover: #2c3140;
+  --surface-control-active: #343a4c;
+  --surface-overlay: rgba(11, 12, 15, 0.78);
+
+  /* Borders & Hairlines */
+  --border-subtle: #252934;
+  --border-default: #2e3342;
+  --border-strong: #3f4659;
+
+  /* Typography Colors */
+  --text-primary: #e8eaf2;
+  --text-secondary: #98a0b2;
+  --text-muted: #656d80;
+  --text-inverse: #ffffff;
+
+  /* Restrained Distinctive Blue-Violet Studio Accent */
+  --accent: #7c6cf6;
+  --accent-hover: #6a59e8;
+  --accent-active: #5b4ad6;
+  --accent-soft: rgba(124, 108, 246, 0.16);
+  --accent-border: rgba(124, 108, 246, 0.55);
+  --accent-text: #c4bcff;
+
+  /* Semantic Status Colors (Paired with icons & labels, never color-only) */
+  --success: #22c55e;
+  --success-soft: rgba(34, 197, 94, 0.12);
+  --success-border: rgba(34, 197, 94, 0.36);
+  --success-text: #86efac;
+
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.13);
+  --warning-border: rgba(245, 158, 11, 0.42);
+  --warning-text: #fde68a;
+
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.13);
+  --danger-border: rgba(239, 68, 68, 0.42);
+  --danger-text: #fca5a5;
+
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.13);
+
+  /* Master Timeline Track Identity Tones (Restrained Studio Palette) */
+  --track-scene-bg: #2e3748;
+  --track-scene-border: #475569;
+  --track-camera-bg: rgba(124, 108, 246, 0.28);
+  --track-camera-accent: #a599ff;
+  --track-char-bg: rgba(59, 130, 246, 0.26);
+  --track-char-border: rgba(96, 165, 250, 0.52);
+  --track-char-text: #bfdbfe;
+  --track-sfx-bg: rgba(20, 184, 166, 0.25);
+  --track-sfx-border: rgba(45, 212, 191, 0.5);
+  --track-sfx-wave: #5eead4;
+  --track-keyframe: #f59e0b;
+  --playhead-color: #7c6cf6;
+
+  /* Focus & Elevation */
+  --focus-ring: 0 0 0 2px rgba(124, 108, 246, 0.5);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.52);
+  --shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.68);
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* Radii (Subtle, technical desktop geometry — never bubbly) */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 12px;
+  --text-md: 13px;
+
+  /* Shell Dimensions */
+  --topbar-h: 42px;
+  --statusbar-h: 26px;
+  --panel-header-h: 32px;
+  --rail-w: 46px;
+  --rail-expanded-w: 152px;
+}
+
+/* Future-ready Slate Contrast Theme Hook */
+[data-theme='slate-contrast'] {
+  --surface-canvas: #07080a;
+  --surface-base: #0d0f13;
+  --surface-panel: #12151c;
+  --surface-header: #171a22;
+  --surface-control: #1e222d;
+  --border-subtle: #282d3b;
+  --border-default: #353c4f;
+  --text-primary: #f1f4fa;
+  --accent: #8b7cf8;
+}

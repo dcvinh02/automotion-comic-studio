@@ -1,0 +1,44 @@
+{
+  "name": "automotion-comic-studio-frontend",
+  "version": "0.1.0",
+  "description": "AutoMotion Comic Studio Desktop Frontend (Electron + React + TypeScript + PixiJS + Zustand)",
+  "private": true,
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev:renderer": "vite",
+    "build:electron": "node scripts/build-electron.mjs",
+    "build:renderer": "tsc --noEmit && vite build",
+    "build": "npm run build:renderer && npm run build:electron",
+    "dev": "node scripts/ensure-electron.mjs && npm run build:electron && concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "start": "node scripts/ensure-electron.mjs && npm run build && electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^0.469.0",
+    "pixi.js": "^8.6.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.0",
+    "esbuild": "^0.24.2",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4",
+    "wait-on": "^8.0.2"
+  },
+  "allowScripts": {
+    "electron@35.7.5": true,
+    "esbuild@0.24.2": true,
+    "esbuild@0.25.12": true
+  }
+}

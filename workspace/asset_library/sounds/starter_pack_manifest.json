@@ -1,0 +1,623 @@
+{
+  "pack_name": "AutoMotion Comic Studio Original CC0 Starter Audio Pack",
+  "version": "1.0.0",
+  "generated_at": "2026-11-20T08:01:03.647066+00:00",
+  "license": "CC0-1.0",
+  "license_notice": "100% original procedural audio synthesized locally by AutoMotion Comic Studio. Released under CC0-1.0 (Public Domain) — safe for offline and commercial use.",
+  "sfx_count": 24,
+  "bgm_count": 10,
+  "assets": [
+    {
+      "asset_id": "starter_sfx_footsteps",
+      "name": "Soft Wood Footstep",
+      "type": "sfx",
+      "category": "footsteps",
+      "tags": [
+        "step",
+        "wood",
+        "indoor"
+      ],
+      "duration_ms": 350,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_footsteps.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_walking",
+      "name": "Steady Walking Steps",
+      "type": "sfx",
+      "category": "walking",
+      "tags": [
+        "walk",
+        "cadence",
+        "steps"
+      ],
+      "duration_ms": 1600,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_walking.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_running",
+      "name": "Fast Sprint Footsteps",
+      "type": "sfx",
+      "category": "running",
+      "tags": [
+        "run",
+        "sprint",
+        "chase"
+      ],
+      "duration_ms": 1200,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_running.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_punch",
+      "name": "Comic Punch Hit",
+      "type": "sfx",
+      "category": "punch",
+      "tags": [
+        "fight",
+        "hit",
+        "action"
+      ],
+      "duration_ms": 380,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_punch.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_impact",
+      "name": "Heavy Thud Impact",
+      "type": "sfx",
+      "category": "impact",
+      "tags": [
+        "slam",
+        "drop",
+        "heavy"
+      ],
+      "duration_ms": 550,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_impact.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_doors",
+      "name": "Wooden Door Shut",
+      "type": "sfx",
+      "category": "doors",
+      "tags": [
+        "door",
+        "latch",
+        "room"
+      ],
+      "duration_ms": 650,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_doors.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_objects",
+      "name": "Cup Set On Table",
+      "type": "sfx",
+      "category": "objects",
+      "tags": [
+        "table",
+        "prop",
+        "tap"
+      ],
+      "duration_ms": 320,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_objects.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_paper",
+      "name": "Crisp Page Flip",
+      "type": "sfx",
+      "category": "paper",
+      "tags": [
+        "book",
+        "comic",
+        "page"
+      ],
+      "duration_ms": 420,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_paper.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_glass",
+      "name": "Bright Glass Clink",
+      "type": "sfx",
+      "category": "glass",
+      "tags": [
+        "crystal",
+        "chime",
+        "clink"
+      ],
+      "duration_ms": 750,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_glass.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_wind",
+      "name": "Gentle Wind Breeze",
+      "type": "sfx",
+      "category": "wind",
+      "tags": [
+        "air",
+        "outdoor",
+        "ambient"
+      ],
+      "duration_ms": 2360,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_wind.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_rain",
+      "name": "Soft Rain Bed",
+      "type": "sfx",
+      "category": "rain",
+      "tags": [
+        "weather",
+        "storm",
+        "ambient"
+      ],
+      "duration_ms": 2360,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_rain.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_thunder",
+      "name": "Distant Rolling Thunder",
+      "type": "sfx",
+      "category": "thunder",
+      "tags": [
+        "storm",
+        "dramatic",
+        "rumble"
+      ],
+      "duration_ms": 2200,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_thunder.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_fire",
+      "name": "Warm Campfire Crackle",
+      "type": "sfx",
+      "category": "fire",
+      "tags": [
+        "flame",
+        "hearth",
+        "ambient"
+      ],
+      "duration_ms": 2160,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_fire.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_water",
+      "name": "Water Drop & Plop",
+      "type": "sfx",
+      "category": "water",
+      "tags": [
+        "drop",
+        "liquid",
+        "splash"
+      ],
+      "duration_ms": 480,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_water.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_crowd",
+      "name": "Soft Room Murmur",
+      "type": "sfx",
+      "category": "crowd",
+      "tags": [
+        "cafe",
+        "people",
+        "ambient"
+      ],
+      "duration_ms": 2360,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_crowd.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_animals",
+      "name": "Morning Bird Chirp",
+      "type": "sfx",
+      "category": "animals",
+      "tags": [
+        "bird",
+        "nature",
+        "morning"
+      ],
+      "duration_ms": 680,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_animals.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_vehicles",
+      "name": "Vehicle Pass-By",
+      "type": "sfx",
+      "category": "vehicles",
+      "tags": [
+        "car",
+        "traffic",
+        "street"
+      ],
+      "duration_ms": 1600,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_vehicles.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_magic",
+      "name": "Arcane Sparkle Chime",
+      "type": "sfx",
+      "category": "magic",
+      "tags": [
+        "spell",
+        "glow",
+        "fantasy"
+      ],
+      "duration_ms": 1150,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_magic.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_horror",
+      "name": "Eerie Hollow Drone",
+      "type": "sfx",
+      "category": "horror",
+      "tags": [
+        "scary",
+        "creepy",
+        "dark"
+      ],
+      "duration_ms": 1800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_horror.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_suspense",
+      "name": "Tension Sub-Pulse",
+      "type": "sfx",
+      "category": "suspense",
+      "tags": [
+        "heartbeat",
+        "mystery",
+        "thriller"
+      ],
+      "duration_ms": 1400,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_suspense.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_transitions",
+      "name": "Fast Panel Whoosh",
+      "type": "sfx",
+      "category": "transitions",
+      "tags": [
+        "swipe",
+        "cut",
+        "whoosh"
+      ],
+      "duration_ms": 520,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_transitions.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_ui",
+      "name": "Crisp UI Pop Chime",
+      "type": "sfx",
+      "category": "ui",
+      "tags": [
+        "click",
+        "notify",
+        "bubble"
+      ],
+      "duration_ms": 280,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_ui.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_comedy",
+      "name": "Cartoon Spring Boing",
+      "type": "sfx",
+      "category": "comedy",
+      "tags": [
+        "funny",
+        "boing",
+        "bounce"
+      ],
+      "duration_ms": 620,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_comedy.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_sfx_cinematic",
+      "name": "Trailer Impact Boom",
+      "type": "sfx",
+      "category": "cinematic",
+      "tags": [
+        "epic",
+        "boom",
+        "trailer"
+      ],
+      "duration_ms": 1550,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/sfx/starter_sfx_cinematic.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_cinematic",
+      "name": "Heroic Horizon Loop",
+      "type": "bgm",
+      "category": "cinematic",
+      "tags": [
+        "epic",
+        "loop",
+        "theme"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_cinematic.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_emotional",
+      "name": "Warm Memory Piano Loop",
+      "type": "bgm",
+      "category": "emotional",
+      "tags": [
+        "piano",
+        "heartfelt",
+        "loop"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_emotional.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_sad",
+      "name": "Rainy Window Minor Loop",
+      "type": "bgm",
+      "category": "sad",
+      "tags": [
+        "melancholy",
+        "minor",
+        "loop"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_sad.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_happy",
+      "name": "Sunny Day Bounce Loop",
+      "type": "bgm",
+      "category": "happy",
+      "tags": [
+        "upbeat",
+        "bright",
+        "loop"
+      ],
+      "duration_ms": 4000,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_happy.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_romantic",
+      "name": "Starlight Waltz Loop",
+      "type": "bgm",
+      "category": "romantic",
+      "tags": [
+        "gentle",
+        "warm",
+        "loop"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_romantic.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_suspense",
+      "name": "Midnight Mystery Pulse",
+      "type": "bgm",
+      "category": "suspense",
+      "tags": [
+        "detective",
+        "tension",
+        "loop"
+      ],
+      "duration_ms": 4000,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_suspense.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_horror",
+      "name": "Shadow Corridor Ambience",
+      "type": "bgm",
+      "category": "horror",
+      "tags": [
+        "dark",
+        "eerie",
+        "loop"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_horror.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_action",
+      "name": "Chase Tempo Synth Loop",
+      "type": "bgm",
+      "category": "action",
+      "tags": [
+        "fast",
+        "battle",
+        "loop"
+      ],
+      "duration_ms": 4000,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_action.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_calm",
+      "name": "Morning Breeze Ambient",
+      "type": "bgm",
+      "category": "calm",
+      "tags": [
+        "chill",
+        "peaceful",
+        "loop"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_calm.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    },
+    {
+      "asset_id": "starter_bgm_fantasy",
+      "name": "Enchanted Grove Arpeggio",
+      "type": "bgm",
+      "category": "fantasy",
+      "tags": [
+        "harp",
+        "magic",
+        "loop"
+      ],
+      "duration_ms": 4800,
+      "format": "wav",
+      "license": "CC0-1.0",
+      "source": "AutoMotion Comic Studio Original CC0 Starter Pack",
+      "file_path": "starter_pack/bgm/starter_bgm_fantasy.wav",
+      "import_date": "2026-11-20T08:01:03.647066+00:00",
+      "favorite": false
+    }
+  ]
+}
