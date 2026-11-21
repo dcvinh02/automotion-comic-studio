@@ -143,7 +143,10 @@ export function MasterTimeline() {
   const characters = useLibraryStore((s) => s.characters);
   const pushToast = useJobStore((s) => s.pushToast);
 
-  const currentFrame = usePlaybackStore((s) => s.currentFrame);
+  // Phase 09.2: no subscription to currentFrame here — it changes every playback frame and used to
+  // re-render the whole timeline (ruler, tracks, clips, keyframes) 30×/s. Handlers read it on demand;
+  // only <PlayheadNeedle/> and <PlayheadTimecode/> subscribe.
+  const readFrame = () => usePlaybackStore.getState().currentFrame;
   const setCurrentFrame = usePlaybackStore((s) => s.setCurrentFrame);
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
   const pxPerSec = usePlaybackStore((s) => s.timelineZoomPxPerSec);
@@ -289,8 +292,7 @@ export function MasterTimeline() {
   const totalMs = project.timeline.total_duration_ms;
   const totalSec = Math.ceil(totalMs / 1000);
   const timelineWidthPx = Math.max(820, Math.ceil((totalMs / 1000) * pxPerSec) + 140);
-  const playheadMs = frameToMs(currentFrame, fps);
-  const playheadX = (playheadMs / 1000) * pxPerSec;
+  const readPlayheadMs = () => frameToMs(readFrame(), fps);
 
   const msToPx = (ms: number) => (ms / 1000) * pxPerSec;
   const pxToMs = (px: number) => {
@@ -565,7 +567,7 @@ export function MasterTimeline() {
       // Synthetic pointer events in tests may not have an active pointerId
     }
 
-    const preDragSnapshot = structuredClone(curProj);
+    const preDragSnapshot = curProj; // Phase 09.2: committed states are immutable — no deep clone at drag start
     const origKeyframes = structuredClone(curProj.timeline.keyframes);
 
     kfDragRef.current = {
@@ -1008,7 +1010,10 @@ export function MasterTimeline() {
           disabled: locked || seg.end_ms - seg.start_ms < 200,
           onSelect: () => {
             const splitMs =
-              playheadMs > seg.start_ms + 80 && playheadMs < seg.end_ms - 80 ? playheadMs : undefined;
+              (() => {
+                const ph = readPlayheadMs();
+                return ph > seg.start_ms + 80 && ph < seg.end_ms - 80 ? ph : undefined;
+              })();
             splitSubtitleSegmentAt(seg.subtitle_id, splitMs);
           },
         },
@@ -1195,13 +1200,13 @@ export function MasterTimeline() {
           icon: <MoveHorizontal size={12} />,
           disabled: locked,
           onSelect: () => {
-            const res = moveKeyframesToFrame(targetIds, currentFrame);
+            const res = moveKeyframesToFrame(targetIds, readFrame());
             if (res.movedCount > 0) {
               pushToast(
                 'info',
                 t('timeline.kfMovedToPlayheadToast', {
                   count: res.movedCount,
-                  frame: currentFrame,
+                  frame: readFrame(),
                 }),
               );
               if (res.replacedCount > 0) {
@@ -1248,13 +1253,13 @@ export function MasterTimeline() {
                 icon: <ClipboardPaste size={12} />,
                 disabled: locked,
                 onSelect: () => {
-                  const res = pasteKeyframesAtTime(playheadMs);
+                  const res = pasteKeyframesAtTime(readPlayheadMs());
                   if (res.pastedIds.length > 0) {
                     pushToast(
                       'info',
                       t('timeline.kfPastedCountToast', {
                         count: res.pastedIds.length,
-                        time: formatTimecode(playheadMs),
+                        time: formatTimecode(readPlayheadMs()),
                       }),
                     );
                   }
@@ -1325,13 +1330,13 @@ export function MasterTimeline() {
           label: t('timeline.ctxPasteCount', { count: copiedKeyframes.length }),
           icon: <ClipboardPaste size={12} />,
           onSelect: () => {
-            const res = pasteKeyframesAtTime(playheadMs);
+            const res = pasteKeyframesAtTime(readPlayheadMs());
             if (res.pastedIds.length > 0) {
               pushToast(
                 'info',
                 t('timeline.kfPastedCountToast', {
                   count: res.pastedIds.length,
-                  time: formatTimecode(playheadMs),
+                  time: formatTimecode(readPlayheadMs()),
                 }),
               );
             }
@@ -1598,8 +1603,8 @@ export function MasterTimeline() {
             onClick={() => {
               ensureSubtitleTrack();
               addSubtitleSegment({
-                start_ms: playheadMs,
-                end_ms: playheadMs + 2500,
+                start_ms: readPlayheadMs(),
+                end_ms: readPlayheadMs() + 2500,
                 text: t('sub.newDefaultText'),
               });
             }}
@@ -1634,13 +1639,13 @@ export function MasterTimeline() {
                 title={t('timeline.moveToPlayhead')}
                 aria-label={t('timeline.moveToPlayhead')}
                 onClick={() => {
-                  const res = moveKeyframesToFrame(selectedKeyframeIds, currentFrame);
+                  const res = moveKeyframesToFrame(selectedKeyframeIds, readFrame());
                   if (res.movedCount > 0) {
                     pushToast(
                       'info',
                       t('timeline.kfMovedToPlayheadToast', {
                         count: res.movedCount,
-                        frame: currentFrame,
+                        frame: readFrame(),
                       }),
                     );
                   }
@@ -1773,8 +1778,7 @@ export function MasterTimeline() {
               }}
               className="mono"
             >
-              <span>{formatTimecode(playheadMs)}</span>
-              <span style={{ color: 'var(--text-muted)' }}>F{currentFrame}</span>
+              <PlayheadTimecode fps={fps} />
             </div>
 
             {sortedTracks.map((track) => {
@@ -2639,32 +2643,51 @@ export function MasterTimeline() {
               )}
 
               {/* Vertical Playhead Needle */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: playheadX,
-                  top: 0,
-                  bottom: 0,
-                  width: 2,
-                  background: 'var(--playhead-color)',
-                  zIndex: 20,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    background: 'var(--playhead-color)',
-                    transform: 'translateX(-4px) rotate(45deg)',
-                    marginTop: -2,
-                  }}
-                />
-              </div>
+              <PlayheadNeedle fps={fps} pxPerSec={pxPerSec} />
             </div>
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+/** Phase 09.2: the only timeline parts that re-render on every playback frame. */
+function PlayheadNeedle({ fps, pxPerSec }: { fps: number; pxPerSec: number }) {
+  const currentFrame = usePlaybackStore((s) => s.currentFrame);
+  const left = (frameToMs(currentFrame, fps) / 1000) * pxPerSec;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left,
+        top: 0,
+        bottom: 0,
+        width: 2,
+        background: 'var(--playhead-color)',
+        zIndex: 20,
+        pointerEvents: 'none',
+      }}
+    >
+      <div
+        style={{
+          width: 10,
+          height: 10,
+          background: 'var(--playhead-color)',
+          transform: 'translateX(-4px) rotate(45deg)',
+          marginTop: -2,
+        }}
+      />
+    </div>
+  );
+}
+
+function PlayheadTimecode({ fps }: { fps: number }) {
+  const currentFrame = usePlaybackStore((s) => s.currentFrame);
+  return (
+    <>
+      <span>{formatTimecode(frameToMs(currentFrame, fps))}</span>
+      <span style={{ color: 'var(--text-muted)' }}>F{currentFrame}</span>
     </>
   );
 }

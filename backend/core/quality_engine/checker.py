@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import copy
+
 from pathlib import Path
 
 from app.config import AppConfig
 from core.animation_engine.validator import validate_timeline_integrity
 from core.asset_engine.service import AssetService
+from core.quality_engine.lookup_cache import RunScopedFiles, RunScopedLibrary
 from core.quality_engine.production_qc import apply_qc_fix, run_production_qc
 from core.sound_engine.service import SoundService
 from database.library_repo import LibraryRepository
@@ -34,6 +37,15 @@ class QualityControlEngine:
         self.sound_service = sound_service
 
     def run_preflight(self, state: ProjectState) -> QCReport:
+        # Phase 09.2: memoize library lookups for this run only (was one SQLite connection per reference)
+        # A per-run shallow copy keeps the shared engine untouched (safe under concurrent requests).
+        runner = copy.copy(self)
+        runner.library_repo = RunScopedLibrary(self.library_repo)  # type: ignore[assignment]
+        runner.asset_service = RunScopedFiles(self.asset_service)  # type: ignore[assignment]
+        runner.sound_service = RunScopedFiles(self.sound_service)  # type: ignore[assignment]
+        return runner._run_preflight(state)
+
+    def _run_preflight(self, state: ProjectState) -> QCReport:
         issues: list[QCIssue] = []
 
         # 1. Timeline integrity checks

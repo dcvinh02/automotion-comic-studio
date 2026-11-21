@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useDeferredValue } from 'react';
 import {
   ArrowDown,
   ArrowDownToLine,
@@ -125,7 +125,9 @@ export function RightInspector() {
   const switchWorkspace = useWorkspaceStore((s) => s.switchWorkspace);
   const setSidebarTab = useWorkspaceStore((s) => s.setSidebarTab);
 
-  const currentFrame = usePlaybackStore((s) => s.currentFrame);
+  // Phase 09.2: the inspector (≈9 ms render on large projects) follows the playhead at low,
+  // interruptible priority so playback frames for the preview and playhead are never blocked by it.
+  const currentFrame = useDeferredValue(usePlaybackStore((s) => s.currentFrame));
   const setCurrentFrame = usePlaybackStore((s) => s.setCurrentFrame);
 
   const [assetTagDraft, setAssetTagDraft] = useState('');

@@ -37,8 +37,26 @@ export function applyEasing(
  * Deterministically deduplicate keyframes sharing the exact same time_ms
  * (last keyframe in insertion order wins) and sort ascending by time_ms.
  */
+const normalizedCache = new WeakMap<Keyframe[], Keyframe[]>();
+const cacheableLists = new WeakSet<Keyframe[]>();
+
+/** Mark a private, never-mutated keyframe list (from the evaluator index) as safe to memoize. */
+export function markImmutableKeyframeList(list: Keyframe[]): void {
+  cacheableLists.add(list);
+}
+
 function normalizeSortedKeyframes(keyframes: Keyframe[]): Keyframe[] {
   if (keyframes.length <= 1) return keyframes;
+  // Phase 09.2: lists from the keyframe index are stable arrays → sort/dedupe once, not per frame.
+  if (!cacheableLists.has(keyframes)) return normalizeSortedKeyframesUncached(keyframes);
+  const cached = normalizedCache.get(keyframes);
+  if (cached) return cached;
+  const result = normalizeSortedKeyframesUncached(keyframes);
+  normalizedCache.set(keyframes, result);
+  return result;
+}
+
+function normalizeSortedKeyframesUncached(keyframes: Keyframe[]): Keyframe[] {
   const byTime = new Map<number, Keyframe>();
   for (const kf of keyframes) {
     byTime.set(Math.round(kf.time_ms), kf);

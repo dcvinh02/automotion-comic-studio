@@ -450,10 +450,21 @@ class ProjectRepository:
             else "{}"
         )
 
-        section_hashes = {
-            sec: hashlib.sha256(payload.encode("utf-8")).hexdigest()
-            for sec, payload in self._section_payloads(updated_state).items()
+        # Phase 09.2: hash the column JSON already produced above instead of serializing the whole
+        # project a second time (pydantic field order is deterministic, so hashes are stable).
+        section_payloads = {
+            "meta": json.dumps(updated_meta.model_dump(exclude={"updated_at"}), sort_keys=True),
+            "scenes": scenes_json,
+            "timeline": timeline_json,
+            "script": json.dumps(updated_state.script.model_dump(exclude={"updated_at"})),
+            "subtitles": subtitles_json,
+            "director": director_json if updated_state.director is not None else "null",
+            "storyboard": storyboard_json if updated_state.storyboard is not None else "null",
+            "production_plan": production_plan_json if updated_state.production_plan is not None else "null",
+            "production_queue": production_queue_json if updated_state.production_queue is not None else "null",
+            "qc_report": qc_report_json if updated_state.qc_report is not None else "null",
         }
+        section_hashes = {sec: hashlib.sha256(payload.encode("utf-8")).hexdigest() for sec, payload in section_payloads.items()}
         changed: list[str] = []
         revisions: dict[str, int] = {}
 

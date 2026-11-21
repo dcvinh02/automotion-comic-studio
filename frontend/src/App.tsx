@@ -121,7 +121,8 @@ export function App() {
   const clearProjectAudio = useVoiceStore((s) => s.clearProjectAudio);
 
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
-  const currentFrame = usePlaybackStore((s) => s.currentFrame);
+  // Phase 09.2: App must not subscribe to currentFrame (it changes every playback frame and would
+  // re-render the whole application tree); handlers read it from the store when they run.
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
   const setCurrentFrame = usePlaybackStore((s) => s.setCurrentFrame);
   const stepFrames = usePlaybackStore((s) => s.stepFrames);
@@ -341,7 +342,7 @@ export function App() {
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v' && copiedKeyframes.length > 0 && project) {
         e.preventDefault();
-        const pasteMs = Math.round(frameToMs(currentFrame, project.timeline.fps));
+        const pasteMs = Math.round(frameToMs(usePlaybackStore.getState().currentFrame, project.timeline.fps));
         const res = pasteKeyframesAtTime(pasteMs);
         if (res.pastedIds.length > 0) {
           pushToast(
@@ -517,7 +518,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     isPlaying,
-    currentFrame,
     centerMode,
     project,
     selection,

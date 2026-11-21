@@ -206,3 +206,20 @@ Aligned with Master Technical Specification v2.0 (`Kiến trúc nền tảng.rtf
 **Other integration repairs.** Scene delete / duration change move keyframes, clips, audio and subtitles with their scene (`frontend/src/engine/sceneTimeline.ts`) instead of leaving them at stale absolute times; deleting in-use library assets/characters returns 409 with usages (`core/asset_engine/references.py`) and the UI confirms; project save errors are surfaced (previously swallowed); QC reports `OUTDATED_SUBTITLE` when the script line a cue was generated from is edited or deleted.
 
 **Known limitations (not implemented in the codebase):** Smart Blur, Animation Repair, Audio Intelligence, visual effects and color grading do not exist; cross-dissolve renders as fade-from-black; voice lines are not flagged as outdated after script edits (only subtitles); PixiJS decomposes part matrices (no skew) while the software renderer applies full affine transforms (differs only with non-uniform parent scale + rotation).
+
+## Phase 09.2 — Performance & Memory (measured on a 40-scene / 6,960-keyframe / 2 MB stress project)
+
+**Tooling.** `tests/performance/stress_project.py` (deterministic large project, temp workspace only), `bench_backend.py` (API/QC/render timings + exports data for the frontend), `frontend/bench_engine.ts` + `frontend/soak_store.ts` (real app code bundled with esbuild, run in Node), `frontend/src/perf/*.bench.test.tsx` (React render cost in jsdom; run with `AMCS_STRESS_DIR=…`). Always-on regression guards: `tests/performance/test_perf_regressions.py`, `frontend/src/perf/engine.perf.test.tsx`, `src/engine/structuralShare.test.ts`, `src/renderer/textureCache.test.ts`, `src/components/timeline/playhead.test.tsx`.
+
+| Change | Before → After (measured) |
+|---|---|
+| `App`/`MasterTimeline` no longer subscribe to `currentFrame`; only `PlayheadNeedle`/`PlayheadTimecode` do | timeline re-render per playback frame 22.6 ms → 0.2 ms |
+| Keyframe index (per immutable keyframes array) + cached "owned by other shots" set, in `evaluator.ts` and `SoftwareCompositor` | preview evaluation 14.8 ms → 0.04 ms/frame; render evaluation 21 ms → 0.15 ms/frame |
+| Undo history keeps immutable states by reference; `shareUnchanged()` gives structural sharing between edits | retained heap for 80 edits 236 MB → 7 MB; soak plateau 237 MB → 11 MB; median edit 22.4 → 19.3 ms |
+| Bounded frame-render thread pool (`cpu−2`, max 4, `AMCS_RENDER_THREADS`), in-order writes, ≤2×workers frames in flight | 10 s 1080p export 66.8 s → 20.5 s; decoded frames bit-identical (framemd5) |
+| Per-run memoized QC library lookups (was one SQLite connection per reference) | QC preflight 277 → 141 ms; production QC 406 → 249 ms |
+| Section hashes reuse the column JSON (no second full serialization); script `updated_at` no longer bumps its revision | section save ~98 → ~84 ms |
+| Bounded LRU GPU texture cache (384 MB estimated budget, textures used by the current frame never evicted) | unbounded → bounded (GPU memory itself not measurable here) |
+| `RightInspector` follows the playhead via `useDeferredValue` | ~9.4 ms render now interruptible (total work unchanged) |
+
+Soak results: backend 150 load/save/QC cycles + 3 renders — constant open fds (8), threads (4), no child processes, Python heap flat after warm-up; frontend 400 edits — retained heap flat at the undo cap.

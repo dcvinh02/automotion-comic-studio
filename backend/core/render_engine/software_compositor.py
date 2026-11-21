@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import threading
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -231,7 +232,17 @@ class SoftwareCompositor:
         self._font_cache: dict[tuple[bool, int], ImageFont.FreeTypeFont | ImageFont.ImageFont] = {}
         self._stage_scale_x = content_w / float(state.meta.width)
         self._stage_scale_y = content_h / float(state.meta.height)
-        self._excluded_kf_ids: set[str] = set()
+        # Phase 09.2: frames may be rendered concurrently from a bounded thread pool (Pillow releases
+        # the GIL), so per-frame evaluation state is thread-local and shared caches are guarded.
+        self._tls = threading.local()
+        self._image_lock = threading.Lock()
+        self._missing_assets: set[str] = set()
+        # Keyframes indexed once by (target_type, target_id, property): lookups used to scan every
+        # keyframe in the project for every property of every object on every frame.
+        self._kf_index: dict[tuple[str, str, str], list[Keyframe]] = {}
+        for k in state.timeline.keyframes:
+            self._kf_index.setdefault((k.target_type, k.target_id, k.property), []).append(k)
+        self._excluded_by_shot: dict[str, frozenset[str]] = {}
 
     def close(self) -> None:
         for img in self._image_cache.values():
@@ -245,13 +256,21 @@ class SoftwareCompositor:
     def _get_image(self, asset_id: str | None) -> Image.Image | None:
         if not asset_id:
             return None
+        cached = self._image_cache.get(asset_id)
+        if cached is not None:
+            return cached
+        with self._image_lock:
+            return self._load_image_locked(asset_id)
+
+    def _load_image_locked(self, asset_id: str) -> Image.Image | None:
         if asset_id in self._image_cache:
             return self._image_cache[asset_id]
+        if asset_id in self._missing_assets:
+            return None  # don't hit the database again on every frame for a missing asset
         asset = self.library_repo.get_asset(asset_id)
-        if not asset:
-            return None
-        path = self.asset_service.resolve_asset_file(asset)
-        if not path.is_file():
+        path = self.asset_service.resolve_asset_file(asset) if asset else None
+        if path is None or not path.is_file():
+            self._missing_assets.add(asset_id)
             return None
         img = Image.open(path).convert("RGBA")
         self._image_cache[asset_id] = img
@@ -271,15 +290,19 @@ class SoftwareCompositor:
                 return scene
         return scenes[-1] if scenes else None
 
+    @property
+    def _excluded_kf_ids(self) -> frozenset[str]:
+        """Keyframes excluded (owned by other shots) for the frame last evaluated on this thread."""
+        return getattr(self._tls, "excluded", frozenset())
+
     def _kfs_for(self, target_type: str, target_id: str, prop: str) -> list[Keyframe]:
-        return [
-            k
-            for k in self.state.timeline.keyframes
-            if k.target_type == target_type
-            and k.target_id == target_id
-            and k.property == prop
-            and k.keyframe_id not in self._excluded_kf_ids
-        ]
+        lst = self._kf_index.get((target_type, target_id, prop))
+        if not lst:
+            return []
+        excluded = getattr(self._tls, "excluded", None)
+        if excluded and any(k.keyframe_id in excluded for k in lst):
+            return [k for k in lst if k.keyframe_id not in excluded]
+        return lst
 
     def _active_anim_clip(self, instance_id: str, time_ms: float) -> CharacterAnimationClip | None:
         for clip in self.state.timeline.animation_clips:
@@ -329,16 +352,22 @@ class SoftwareCompositor:
                 "fadeAlpha": 1.0, "camera": None, "props": [], "characters": [],
             }
         active_shot = self._find_active_shot(scene, time_ms)
-        excluded_kfs: set[str] = set()
         if active_shot is not None:
-            for sc_other in self.state.scenes:
-                for sh_other in sc_other.shots:
-                    if sh_other.shot_id == active_shot.shot_id:
-                        continue
-                    excluded_kfs.update(sh_other.animation_refs)
-                    for mot in sh_other.applied_motions:
-                        excluded_kfs.update(mot.keyframe_ids)
-        self._excluded_kf_ids = excluded_kfs
+            excluded_kfs = self._excluded_by_shot.get(active_shot.shot_id)
+            if excluded_kfs is None:
+                acc: set[str] = set()
+                for sc_other in self.state.scenes:
+                    for sh_other in sc_other.shots:
+                        if sh_other.shot_id == active_shot.shot_id:
+                            continue
+                        acc.update(sh_other.animation_refs)
+                        for mot in sh_other.applied_motions:
+                            acc.update(mot.keyframe_ids)
+                excluded_kfs = frozenset(acc)
+                self._excluded_by_shot[active_shot.shot_id] = excluded_kfs
+        else:
+            excluded_kfs = frozenset()
+        self._tls.excluded = excluded_kfs
 
         owned_char_ids = set(scene.execution_meta.owned_character_instance_ids) if scene.execution_meta else set()
         owned_prop_ids = set(scene.execution_meta.owned_prop_instance_ids) if scene.execution_meta else set()

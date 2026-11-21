@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { repackScenesPreservingContent } from '@/engine/sceneTimeline';
+import { shareUnchanged } from '@/engine/structuralShare';
 import {
   applySaveResponse,
   dirtySections,
@@ -850,7 +851,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   pushHistorySnapshot: () => {
     const { project, undoStack } = get();
     if (!project) return;
-    const nextUndo = [...undoStack, cloneState(project)].slice(-MAX_HISTORY);
+    const nextUndo = [...undoStack, project].slice(-MAX_HISTORY); // immutable state → share by reference
     set({ undoStack: nextUndo, redoStack: [] });
   },
 
@@ -880,13 +881,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   mutateProject: (mutator, recordHistory = true) => {
     const { project, undoStack } = get();
     if (!project) return;
-    const snapshot = recordHistory ? cloneState(project) : null;
-    const draft = cloneState(project);
-    mutator(draft);
+    // Phase 09.2: the previous committed state is immutable, so the undo snapshot is the state
+    // itself (no extra deep clone) and the edited draft re-uses every unchanged sub-object.
+    const snapshot = recordHistory ? project : null;
+    const edited = cloneState(project);
+    mutator(edited);
     // Keep Scene Layers <-> MasterTimeline tracks and meta fields strictly synchronized
-    reconcileProjectLayersAndTimeline(draft);
-    draft.meta.duration_ms = draft.timeline.total_duration_ms;
-    draft.meta.fps = draft.timeline.fps;
+    reconcileProjectLayersAndTimeline(edited);
+    edited.meta.duration_ms = edited.timeline.total_duration_ms;
+    edited.meta.fps = edited.timeline.fps;
+    const draft = shareUnchanged(project, edited);
     const liveKfIds = new Set(draft.timeline.keyframes.map((k) => k.keyframe_id));
     set((s) => {
       const prunedSel = s.selectedKeyframeIds.filter((id) => liveKfIds.has(id));
@@ -914,7 +918,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({
       project: prev,
       undoStack: undoStack.slice(0, -1),
-      redoStack: [...redoStack, cloneState(project)].slice(-MAX_HISTORY),
+      redoStack: [...redoStack, project].slice(-MAX_HISTORY),
       selectedKeyframeIds: pruned,
       selectedKeyframeId: pruned.length > 0 ? pruned[pruned.length - 1] : null,
       selectionAnchorKeyframeId:
@@ -934,7 +938,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({
       project: next,
       redoStack: redoStack.slice(0, -1),
-      undoStack: [...undoStack, cloneState(project)].slice(-MAX_HISTORY),
+      undoStack: [...undoStack, project].slice(-MAX_HISTORY),
       selectedKeyframeIds: pruned,
       selectedKeyframeId: pruned.length > 0 ? pruned[pruned.length - 1] : null,
       selectionAnchorKeyframeId:
@@ -3266,7 +3270,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       lastSavedAt: cloned.meta.updated_at || new Date().toISOString(),
       undoStack:
         recordHistory && project
-          ? [...undoStack, cloneState(project)].slice(-MAX_HISTORY)
+          ? [...undoStack, project].slice(-MAX_HISTORY)
           : undoStack,
       redoStack: recordHistory ? [] : get().redoStack,
     });

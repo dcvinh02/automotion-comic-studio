@@ -66,6 +66,8 @@ export class PixiSceneGraph {
   private readonly subtitleLayer = new Container();
   private lastSubtitleSig = '';
   private readonly textureCache: AssetTextureCache;
+  /** Asset IDs requested by the frame currently being rendered (protected from eviction). */
+  private texturesInUse = new Set<string>();
   private stageWidth: number;
   private stageHeight: number;
   private onTextureLoaded?: () => void;
@@ -239,6 +241,11 @@ export class PixiSceneGraph {
     }
 
     this.worldContainer.sortChildren();
+    // Phase 09.2: bounded texture memory — only textures not used by this frame can be evicted.
+    // Pooled sprites that are hidden still point at their texture, so detach them first.
+    const evicted = this.textureCache.evictUnused(this.texturesInUse);
+    if (evicted.length > 0) this.detachEvictedTextures(new Set(evicted));
+    this.texturesInUse = new Set();
 
     // Sort bounds by z_index so hit-testing prefers topmost layer
     const zLookup = new Map<string, number>();
@@ -580,6 +587,7 @@ export class PixiSceneGraph {
   }
 
   private getOrLoadTexture(assetId: string, getAssetUrl: (assetId: string) => string): Texture | null {
+    this.texturesInUse.add(assetId);
     const sync = this.textureCache.getSync(assetId);
     if (sync) return sync;
     void this.textureCache.load(assetId, getAssetUrl(assetId)).then((loaded) => {
@@ -588,5 +596,28 @@ export class PixiSceneGraph {
       }
     });
     return null;
+  }
+
+  private detachEvictedTextures(evicted: Set<string>): void {
+    // Hidden pooled sprites may still reference an evicted (destroyed) texture; drop those sprites
+    // so they are recreated from a fresh texture if their object becomes visible again.
+    for (const [id, sp] of [...this.propSprites.entries()]) {
+      if (!sp.visible && (sp.texture as unknown as { destroyed?: boolean }).destroyed) {
+        sp.parent?.removeChild(sp);
+        sp.destroy();
+        this.propSprites.delete(id);
+      }
+    }
+    for (const [key, sp] of [...this.charPartSprites.entries()]) {
+      if ((!sp.visible || !sp.parent?.visible) && (sp.texture as unknown as { destroyed?: boolean }).destroyed) {
+        sp.parent?.removeChild(sp);
+        sp.destroy();
+        this.charPartSprites.delete(key);
+      }
+    }
+    if (this.bgSprite && (this.bgSprite.texture as unknown as { destroyed?: boolean }).destroyed && !this.bgSprite.visible) {
+      this.bgSprite.texture = Texture.EMPTY;
+    }
+    void evicted;
   }
 }

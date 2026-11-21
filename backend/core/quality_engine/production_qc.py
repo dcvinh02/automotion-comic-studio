@@ -25,6 +25,7 @@ from core.animation_execution_engine.capabilities import (
 )
 from core.asset_engine.service import AssetService
 from core.sound_engine.service import SoundService
+from core.quality_engine.lookup_cache import RunScopedFiles, RunScopedLibrary
 from database.library_repo import LibraryRepository
 from schemas.common import utc_now_iso
 from schemas.production_queue import (
@@ -65,6 +66,10 @@ def run_production_qc(
     queue_doc: ProductionQueueDocument | None = None,
 ) -> ProductionQCReport:
     """Analyze actual project data across all 8 QC categories."""
+    # Phase 09.2: per-run memoized lookups (no stale data across runs)
+    library_repo = RunScopedLibrary(library_repo)  # type: ignore[assignment]
+    asset_service = RunScopedFiles(asset_service)  # type: ignore[assignment]
+    sound_service = RunScopedFiles(sound_service)  # type: ignore[assignment]
     issues: list[ProductionQCIssue] = []
     passed_checks = 0
     total_checks = 0

@@ -9,7 +9,7 @@ import type {
   SceneShot,
   Transform2D,
 } from '@/types/models';
-import { evaluateNumericKeyframes, evaluateStringKeyframes } from './interpolation';
+import { evaluateNumericKeyframes, evaluateStringKeyframes, markImmutableKeyframeList } from './interpolation';
 import { findActiveShotInScene } from './sceneExecutionEngine';
 
 export interface EvaluatedPart {
@@ -78,6 +78,57 @@ function deterministicSeedOffset(id: string): number {
   return Math.abs(hash) % 1700;
 }
 
+const EMPTY_KFS: Keyframe[] = [];
+const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
+const kfIndexCache = new WeakMap<Keyframe[], Map<string, Keyframe[]>>();
+const ownedIdsCache = new WeakMap<Scene[], Map<string, ReadonlySet<string>>>();
+
+function indexKey(targetType: string, targetId: string, prop: string): string {
+  return `${targetType}\u0000${targetId}\u0000${prop}`;
+}
+
+/** Keyframes grouped by (target_type, target_id, property), original order preserved. */
+export function getKeyframeIndex(keyframes: Keyframe[]): Map<string, Keyframe[]> {
+  let idx = kfIndexCache.get(keyframes);
+  if (!idx) {
+    idx = new Map();
+    for (const k of keyframes) {
+      const key = indexKey(k.target_type, k.target_id, k.property);
+      const list = idx.get(key);
+      if (list) list.push(k);
+      else idx.set(key, [k]);
+    }
+    for (const list of idx.values()) markImmutableKeyframeList(list);
+    kfIndexCache.set(keyframes, idx);
+  }
+  return idx;
+}
+
+/** Keyframe IDs owned by shots other than `activeShotId` (zero motion leakage between shots). */
+function getOtherShotOwnedKeyframeIds(scenes: Scene[], activeShotId: string): ReadonlySet<string> {
+  let perShot = ownedIdsCache.get(scenes);
+  if (!perShot) {
+    perShot = new Map();
+    ownedIdsCache.set(scenes, perShot);
+  }
+  let ids = perShot.get(activeShotId);
+  if (!ids) {
+    const set = new Set<string>();
+    for (const scOther of scenes) {
+      for (const shOther of scOther.shots ?? []) {
+        if (shOther.shot_id === activeShotId) continue;
+        for (const id of shOther.animation_refs ?? []) set.add(id);
+        for (const mot of shOther.applied_motions ?? []) {
+          for (const id of mot.keyframe_ids ?? []) set.add(id);
+        }
+      }
+    }
+    ids = set;
+    perShot.set(activeShotId, ids);
+  }
+  return ids;
+}
+
 export function findActiveScene(scenes: Scene[], timeMs: number): Scene | null {
   if (scenes.length === 0) return null;
   const sorted = [...scenes].sort((a, b) => a.start_ms - b.start_ms || a.order_index - b.order_index);
@@ -139,27 +190,24 @@ export function evaluateStageAtFrame(
       : scene.background_color;
 
   const allKfs = state.timeline.keyframes;
-  // Phase 07 Batch 2: Exclude shot-owned keyframes belonging to OTHER shots (zero motion leakage!)
-  const otherShotOwnedKfIds = new Set<string>();
-  if (activeShot) {
-    for (const scOther of state.scenes) {
-      for (const shOther of scOther.shots ?? []) {
-        if (shOther.shot_id === activeShot.shot_id) continue;
-        for (const id of shOther.animation_refs ?? []) otherShotOwnedKfIds.add(id);
-        for (const mot of shOther.applied_motions ?? []) {
-          for (const id of mot.keyframe_ids ?? []) otherShotOwnedKfIds.add(id);
-        }
+  // Phase 09.2: keyframe lookups used to scan every keyframe in the project for every property of
+  // every object on every frame (O(objects × properties × keyframes)). Both the per-target index
+  // and the "owned by other shots" set are cached per (immutable) array and reused across frames.
+  const kfIndex = getKeyframeIndex(allKfs);
+  const otherShotOwnedKfIds = activeShot ? getOtherShotOwnedKeyframeIds(state.scenes, activeShot.shot_id) : EMPTY_ID_SET;
+  const kfsFor = (targetType: Keyframe['target_type'], targetId: string, prop: Keyframe['property']): Keyframe[] => {
+    const list = kfIndex.get(indexKey(targetType, targetId, prop));
+    if (!list) return EMPTY_KFS;
+    if (otherShotOwnedKfIds.size === 0) return list;
+    let excluded = false;
+    for (const k of list) {
+      if (otherShotOwnedKfIds.has(k.keyframe_id)) {
+        excluded = true;
+        break;
       }
     }
-  }
-  const kfsFor = (targetType: Keyframe['target_type'], targetId: string, prop: Keyframe['property']) =>
-    allKfs.filter(
-      (k) =>
-        k.target_type === targetType &&
-        k.target_id === targetId &&
-        k.property === prop &&
-        !otherShotOwnedKfIds.has(k.keyframe_id),
-    );
+    return excluded ? list.filter((k) => !otherShotOwnedKfIds.has(k.keyframe_id)) : list;
+  };
 
   // Camera (shot camera_default -> overridden cleanly by Timeline keyframes)
   const camBase = activeShot ? activeShot.camera_default : scene.camera_default;
