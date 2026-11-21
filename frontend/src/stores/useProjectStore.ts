@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { repackScenesPreservingContent } from '@/engine/sceneTimeline';
 import { shareUnchanged } from '@/engine/structuralShare';
+import { buildRecoveryPayload } from '@/engine/recoveryJournal';
+import { recoveryClient } from '@/services/recoveryClient';
 import {
   applySaveResponse,
   dirtySections,
@@ -170,6 +172,16 @@ interface ProjectStore {
   isDirty: boolean;
   /** Phase 09.1: content + revisions of each section as last synced with the backend. */
   syncSnapshot: SyncSnapshot | null;
+  /** Phase 09.3: last save failure (persistent until a save succeeds); drives the status pill. */
+  saveError: string | null;
+  /** Increments on every failed save so retry logic re-arms even for identical errors. */
+  saveFailureCount: number;
+  /** Put recovered (unsaved) content into the editor as unsaved changes of the open project. */
+  applyRecoveredState: (state: ProjectState) => void;
+  /** Write unsaved sections to crash-recovery storage (never touches project.db). */
+  writeRecoveryJournal: (reason: string) => Promise<boolean>;
+  /** Save pending changes before closing/switching; keeps recovery data if the save fails. */
+  flushBeforeClose: () => Promise<{ ok: boolean; error?: string }>;
   /** Merge a newer server copy (background service writes) without losing unsaved edits. */
   syncFromServer: (fresh: ProjectState) => { keptLocal: string[]; adopted: string[] };
   isSaving: boolean;
@@ -600,6 +612,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   copiedKeyframes: [],
   isDirty: false,
   syncSnapshot: null,
+  saveError: null,
+  saveFailureCount: 0,
   isSaving: false,
   lastSavedAt: null,
   error: null,
@@ -636,6 +650,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   openProject: async (projectId) => {
+    const cur = get();
+    if (cur.project && cur.project.meta.project_id !== projectId && dirtySections(cur.project, cur.syncSnapshot).length > 0) {
+      // Phase 09.3: switching projects used to discard unsaved edits of the current one.
+      const res = await get().flushBeforeClose();
+      if (!res.ok) {
+        throw new Error(`"${cur.project.meta.name}" could not be saved, so it stays open (your changes are kept as recovery data). ${res.error ?? ''}`);
+      }
+    }
     const loaded = await apiClient.getProject(projectId);
     reconcileProjectLayersAndTimeline(loaded);
     set({
@@ -680,22 +702,71 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           // edits made while the request was in flight stay dirty and are autosaved next
           isDirty: res.stillDirty,
           isSaving: false,
+          saveError: null,
           lastSavedAt: saved.meta.updated_at,
         };
       });
+      if (!get().isDirty) {
+        // everything is safely in project.db → recovery data for this project is obsolete
+        void recoveryClient.clearProject(saved.meta.project_id).catch(() => {});
+      }
       if (conflicts.length > 0) {
         set({
           error: `Another process changed ${conflicts.join(', ')} while you were editing. Your version was saved; the previous version is in Backups (tag "conflict").`,
         });
       }
-      void get().loadProjectList();
+      void get().loadProjectList().catch(() => {}); // refresh is best-effort; never an unhandled rejection
     } catch (err) {
-      set({
-        isSaving: false,
-        error: err instanceof Error ? err.message : 'Failed to save project',
-      });
+      const message = err instanceof Error ? err.message : 'Failed to save project';
+      set((st) => ({ isSaving: false, error: message, saveError: message, saveFailureCount: st.saveFailureCount + 1 }));
+      // Keep the unsaved work outside the editor's memory as soon as a save fails.
+      void get().writeRecoveryJournal('save_failed');
       throw err;
     }
+  },
+
+  applyRecoveredState: (state) => {
+    const { project, undoStack } = get();
+    if (!project || project.meta.project_id !== state.meta.project_id) return;
+    reconcileProjectLayersAndTimeline(state);
+    set({
+      project: state,
+      isDirty: true, // differs from the saved snapshot → autosave persists it
+      undoStack: [...undoStack, project].slice(-MAX_HISTORY),
+      redoStack: [],
+    });
+  },
+
+  writeRecoveryJournal: async (reason) => {
+    const { project, syncSnapshot } = get();
+    if (!project) return false;
+    const payload = buildRecoveryPayload(project, syncSnapshot, reason);
+    if (!payload) return false;
+    try {
+      await recoveryClient.write(payload);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  flushBeforeClose: async () => {
+    const st = get();
+    if (!st.project || dirtySections(st.project, st.syncSnapshot).length === 0) return { ok: true };
+    // wait for an in-flight autosave to finish first
+    for (let i = 0; i < 100 && get().isSaving; i++) await new Promise((r) => setTimeout(r, 50));
+    try {
+      await get().saveProject(false);
+    } catch (err) {
+      await get().writeRecoveryJournal('close_save_failed');
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+    const after = get();
+    if (after.project && dirtySections(after.project, after.syncSnapshot).length > 0) {
+      await get().writeRecoveryJournal('close_unsaved');
+      return { ok: false, error: 'Some changes are still unsaved.' };
+    }
+    return { ok: true };
   },
 
   syncFromServer: (fresh) => {

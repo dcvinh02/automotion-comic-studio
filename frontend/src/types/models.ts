@@ -1432,6 +1432,8 @@ export interface ProjectSummary {
   scene_count: number;
   created_at: string;
   updated_at: string;
+  health?: 'ok' | 'damaged';
+  health_message?: string;
 }
 
 export interface BackupInfo {
@@ -1439,6 +1441,32 @@ export interface BackupInfo {
   filename: string;
   created_at: string;
   size_bytes: number;
+  tag?: string;
+  valid?: boolean | null;
+  validation_message?: string;
+}
+
+export interface ProjectIntegrityIssue {
+  code: string;
+  severity: 'error' | 'warning';
+  message: string;
+  ref: string | null;
+}
+
+export interface ProjectIntegrityReport {
+  project_id: string;
+  ok: boolean;
+  error_count: number;
+  warning_count: number;
+  issues: ProjectIntegrityIssue[];
+  missing_assets: { asset_id: string; name: string | null; reason: string; used_by: string[] }[];
+}
+
+export interface ProjectStorageInfo {
+  project_id: string;
+  bytes: Record<string, number>;
+  total_bytes: number;
+  path: string;
 }
 
 export type AudioType = 'sfx' | 'bgm';
@@ -2409,6 +2437,12 @@ declare global {
       selectExportDirectory: () => Promise<string | null>;
       revealInFolder: (filePath: string) => Promise<void>;
       openPath?: (filePath: string) => Promise<string>;
+      recoveryWrite?: (payload: unknown) => Promise<string>;
+      recoveryList?: () => Promise<unknown[]>;
+      recoveryDelete?: (file: string) => Promise<boolean>;
+      recoveryClearProject?: (projectId: string) => Promise<number>;
+      sessionStatus?: () => Promise<{ previousRunCrashed: boolean; previousStartedAt: string | null }>;
+      onCloseRequested?: (handler: () => Promise<{ ok: boolean; error?: string }>) => () => void;
       setRenderActive: (active: boolean) => Promise<void>;
       platform: string;
     };

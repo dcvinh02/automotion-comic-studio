@@ -252,3 +252,12 @@ Thanh Top Bar tích hợp **Workspace Switcher** giúp chuyển đổi nhanh b�
 - **Khôi phục:** nếu ứng dụng bị đóng khi đang render, lần mở sau tác vụ được đánh dấu **Bị gián đoạn** (không tự chạy lại); bấm **Thử lại** để tiếp tục từ đoạn cuối đã hoàn thành.
 - **Lịch sử Xuất:** Xem thử video ngay trong ứng dụng, Mở tệp, Mở thư mục, Sao chép đường dẫn, Xuất lại, xem Nhật ký. **Xóa mục** chỉ xóa khỏi danh sách — không bao giờ xóa video đã xuất.
 - **FFmpeg:** vào **Cài đặt → FFmpeg / Môi trường media** để dò tìm, xem phiên bản, khai báo đường dẫn FFmpeg/FFprobe và **Kiểm tra bộ mã hóa**. Ứng dụng không tự tải FFmpeg.
+
+## 18. Lưu tự động, Sao lưu & Khôi phục (Phase 09.3)
+
+- **Lưu tự động:** mọi thay đổi được lưu khoảng 2 giây sau lần chỉnh sửa cuối. Nhãn trên thanh công cụ cho biết *Đang lưu*, *Chưa lưu*, *Đã lưu (giờ)* hoặc **Lưu thất bại** (màu đỏ — ứng dụng tự thử lại; bấm để thử ngay).
+- **Khi đóng ứng dụng hoặc chuyển dự án:** ứng dụng lưu trước. Nếu không lưu được, bạn được hỏi *Hủy* hoặc *Vẫn thoát* — các thay đổi được giữ làm **dữ liệu khôi phục**.
+- **Sau sự cố (mất điện, ứng dụng bị tắt đột ngột):** lần mở tiếp theo sẽ hiện hộp thoại **Khôi phục công việc chưa lưu** với các lựa chọn *Khôi phục* (tự sao lưu trước), *Lưu thành dự án mới* (giữ nguyên bản gốc), *Mở bản gốc* hoặc *Bỏ*. Không có gì tự động ghi đè dự án của bạn.
+- **Sao lưu:** trong *Quản lý dự án → Sao lưu* bạn thấy loại bản sao lưu (thủ công, trước khi xuất, trước khi khôi phục…) và bản nào không hợp lệ. Khôi phục luôn tự tạo bản sao lưu trạng thái hiện tại trước. Bản sao lưu thủ công không bao giờ bị xóa bởi các bản sao lưu tự động.
+- **Dự án bị hỏng** vẫn hiện trong danh sách với nhãn *Bị hỏng* và nút *Khôi phục bản sao lưu mới nhất*.
+- **Xóa dự án** cần xác nhận và chỉ chuyển dự án (kèm sao lưu) vào thư mục `workspace/.trash/` — có thể đưa lại.

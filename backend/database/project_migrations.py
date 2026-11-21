@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+import threading
 from pathlib import Path
 
 from database.connection import sqlite_transaction
@@ -9,8 +11,87 @@ from database.connection import sqlite_transaction
 PROJECT_SCHEMA_VERSION = "11"
 
 
+class ProjectVersionUnsupportedError(RuntimeError):
+    """The project was written by a newer app version (never downgrade or rewrite it)."""
+
+
+class ProjectDatabaseCorruptError(RuntimeError):
+    """The project database failed SQLite's integrity check or cannot be read."""
+
+
+_checked: dict[str, int] = {}  # db path -> mtime_ns at last successful integrity check
+_check_lock = threading.Lock()
+
+
+def _read_version(db_path: Path) -> int | None:
+    if not db_path.is_file() or db_path.stat().st_size == 0:
+        return None
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10.0)
+        try:
+            tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if "schema_meta" not in tables:
+                return None
+            row = con.execute("SELECT value FROM schema_meta WHERE key='version'").fetchone()
+            return int(row[0]) if row and str(row[0]).isdigit() else None
+        finally:
+            con.close()
+    except sqlite3.DatabaseError as exc:
+        raise ProjectDatabaseCorruptError(f"Project database cannot be read: {exc}") from exc
+
+
+def _quick_check(db_path: Path) -> None:
+    try:
+        con = sqlite3.connect(str(db_path), timeout=10.0)
+        try:
+            res = con.execute("PRAGMA quick_check").fetchone()
+        finally:
+            con.close()
+    except sqlite3.DatabaseError as exc:
+        raise ProjectDatabaseCorruptError(f"Project database cannot be read: {exc}") from exc
+    if not res or res[0] != "ok":
+        raise ProjectDatabaseCorruptError(f"Project database failed its integrity check: {res[0] if res else 'no result'}")
+
+
 def init_project_db(db_path: Path) -> None:
-    """Create tables inside a project's SQLite database idempotently and migrate v1 -> v2 safely."""
+    """Validate, back up when upgrading, then create/migrate tables idempotently (Phase 09.3).
+
+    Once per process per database: SQLite quick_check (corruption → clear error, nothing written),
+    refusal of projects from a newer app version (never downgraded), and a validated
+    `pre_migration` backup before an older schema is upgraded. The new version is recorded last,
+    only after every migration step succeeded.
+    """
+    version = _read_version(db_path)  # cheap (~1 ms): every open, so external changes are noticed
+    if version is not None:
+        if version > int(PROJECT_SCHEMA_VERSION):
+            raise ProjectVersionUnsupportedError(
+                f"This project was saved by a newer version of AutoMotion Comic Studio "
+                f"(project format v{version}, this app supports up to v{PROJECT_SCHEMA_VERSION}). "
+                "It was not opened or modified."
+            )
+        key = str(db_path)
+        mtime = db_path.stat().st_mtime_ns
+        if _checked.get(key) != mtime:
+            with _check_lock:
+                if _checked.get(key) != mtime:
+                    _quick_check(db_path)
+                    _checked[key] = mtime
+        if version < int(PROJECT_SCHEMA_VERSION):
+            from database.backup import create_project_backup  # local import: avoid cycle
+
+            create_project_backup(db_path, db_path.parent / "backups", tag="pre_migration")
+    _migrate(db_path)
+    if version is not None and version < int(PROJECT_SCHEMA_VERSION):
+        _checked[str(db_path)] = db_path.stat().st_mtime_ns
+
+
+def forget_checked(db_path: Path) -> None:
+    """Re-run validation on next open (after a restore replaced the file)."""
+    with _check_lock:
+        _checked.pop(str(db_path), None)
+
+
+def _migrate(db_path: Path) -> None:
     with sqlite_transaction(db_path) as conn:
         conn.executescript(
             """

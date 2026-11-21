@@ -60,6 +60,14 @@ PROJECT_SECTIONS: tuple[str, ...] = (
 )
 
 
+class ProjectDuplicateRequest(BaseModel):
+    """Save As / Save recovered work as a new project (Phase 09.3)."""
+
+    name: str = Field(min_length=1, max_length=160)
+    # Optional project content to use instead of the source's saved state (e.g. recovered edits).
+    state: "ProjectState | None" = None
+
+
 class ProjectCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     description: str = ""
@@ -80,6 +88,8 @@ class ProjectSummary(BaseModel):
     scene_count: int = 0
     created_at: str
     updated_at: str
+    health: str = "ok"  # "ok" | "damaged"
+    health_message: str = ""
 
 
 class BackupInfo(BaseModel):
@@ -87,3 +97,6 @@ class BackupInfo(BaseModel):
     filename: str
     created_at: str
     size_bytes: int
+    tag: str = "unknown"
+    valid: bool | None = None
+    validation_message: str = ""

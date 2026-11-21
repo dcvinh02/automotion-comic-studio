@@ -18,6 +18,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', '../tests/unit/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'electron/**/*.test.ts', '../tests/unit/**/*.test.ts'],
   },
 });

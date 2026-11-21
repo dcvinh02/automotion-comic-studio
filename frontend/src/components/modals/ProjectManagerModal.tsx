@@ -120,26 +120,78 @@ export function ProjectManagerModal({ onClose }: { onClose: () => void }) {
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>
+                        {p.name}
+                        {p.health === 'damaged' && (
+                          <span className="tag-pill warning" style={{ marginLeft: 6 }} title={p.health_message}>
+                            {t('safety.damaged')}
+                          </span>
+                        )}
+                      </div>
                       <div className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-                        {p.width}×{p.height} @ {p.fps}fps • {(p.duration_ms / 1000).toFixed(1)}s • {p.scene_count}
+                        {p.health === 'damaged'
+                          ? t('safety.damagedHint')
+                          : `${p.width}×${p.height} @ ${p.fps}fps • ${(p.duration_ms / 1000).toFixed(1)}s • ${p.scene_count}`}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className="btn-primary"
-                        onClick={async () => {
-                          await openProject(p.project_id);
-                          onClose();
-                        }}
-                      >
-                        {t('common.open')}
-                      </button>
+                      {p.health === 'damaged' ? (
+                        <button
+                          className="btn-primary"
+                          disabled={busy}
+                          onClick={async () => {
+                            setBusy(true);
+                            try {
+                              const list = (await apiClient.listBackups(p.project_id)).filter((b) => b.valid !== false);
+                              if (list.length === 0) {
+                                pushToast('error', t('safety.noValidBackup'));
+                                return;
+                              }
+                              if (!window.confirm(t('safety.restoreDamagedConfirm', { name: p.name, time: new Date(list[0].created_at).toLocaleString() }))) return;
+                              await apiClient.restoreBackup(p.project_id, list[0].filename);
+                              await useProjectStore.getState().loadProjectList();
+                              await openProject(p.project_id);
+                              pushToast('success', t('safety.restoredDamaged', { name: p.name }));
+                              onClose();
+                            } catch (err) {
+                              pushToast('error', err instanceof Error ? err.message : String(err));
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
+                        >
+                          <RotateCcw size={12} /> {t('safety.restoreLatest')}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-primary"
+                          disabled={busy}
+                          onClick={async () => {
+                            setBusy(true);
+                            try {
+                              await openProject(p.project_id);
+                              onClose();
+                            } catch (err) {
+                              pushToast('error', err instanceof Error ? err.message : String(err));
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
+                        >
+                          {t('common.open')}
+                        </button>
+                      )}
                       <button
                         className="btn-danger btn-icon"
                         title={t('common.delete')}
                         onClick={async () => {
-                          await deleteProject(p.project_id);
+                          if (!window.confirm(t('safety.deleteProjectConfirm', { name: p.name }))) return;
+                          try {
+                            await deleteProject(p.project_id);
+                            pushToast('info', t('safety.projectTrashed', { name: p.name }));
+                          } catch (err) {
+                            pushToast('error', err instanceof Error ? err.message : String(err));
+                          }
                         }}
                       >
                         <Trash2 size={12} />
@@ -264,20 +316,36 @@ export function ProjectManagerModal({ onClose }: { onClose: () => void }) {
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                   >
                     <div>
-                      <div className="mono" style={{ fontSize: 11 }}>{b.filename}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600 }}>
+                        {t(`safety.backupTag_${b.tag ?? 'unknown'}`)}
+                        {b.valid === false && (
+                          <span className="tag-pill warning" style={{ marginLeft: 6 }} title={b.validation_message}>
+                            {t('safety.backupInvalid')}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                         {new Date(b.created_at).toLocaleString()} • {(b.size_bytes / 1024).toFixed(1)} KB
                       </div>
                     </div>
                     <button
+                      disabled={b.valid === false || busy}
                       onClick={async () => {
-                        const restored = await apiClient.restoreBackup(
-                          currentProject.meta.project_id,
-                          b.filename,
-                        );
-                        replaceProjectFromRestore(restored);
-                        pushToast('success', `${t('modal.restore')}: ${b.filename}`);
-                        onClose();
+                        if (!window.confirm(t('safety.restoreConfirm', { time: new Date(b.created_at).toLocaleString() }))) return;
+                        setBusy(true);
+                        try {
+                          // save pending edits first so they are part of the automatic pre-restore backup
+                          const flushed = await useProjectStore.getState().flushBeforeClose();
+                          if (!flushed.ok && !window.confirm(t('safety.restoreUnsavedConfirm'))) return;
+                          const restored = await apiClient.restoreBackup(currentProject.meta.project_id, b.filename);
+                          replaceProjectFromRestore(restored);
+                          pushToast('success', t('safety.restored', { time: new Date(b.created_at).toLocaleString() }));
+                          onClose();
+                        } catch (err) {
+                          pushToast('error', err instanceof Error ? err.message : String(err));
+                        } finally {
+                          setBusy(false);
+                        }
                       }}
                     >
                       <RotateCcw size={12} /> {t('modal.restore')}

@@ -57,6 +57,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 loop.call_soon_threadsafe(_emit)
 
         services.project_repo.add_state_listener(_on_project_state)
+        try:  # Phase 09.3: remove leftovers of backups interrupted by a crash (never real backups)
+            from database.backup import cleanup_stale_partials
+
+            for child in cfg.projects_dir.iterdir() if cfg.projects_dir.is_dir() else []:
+                cleanup_stale_partials(child / "backups")
+        except Exception as exc:
+            logger.warning("Backup partial cleanup skipped: %s", exc)
         try:
             services.job_queue.recover_on_startup()
         except Exception as exc:  # recovery must never block startup
@@ -123,6 +130,40 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             if token != expected:
                 return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
         return await call_next(request)
+
+    from fastapi.responses import JSONResponse
+
+    from database.backup import InvalidBackupError, list_project_backups
+    from database.project_migrations import ProjectDatabaseCorruptError, ProjectVersionUnsupportedError
+
+    def _pid(request) -> str | None:
+        return request.path_params.get("project_id")
+
+    @app.exception_handler(ProjectVersionUnsupportedError)
+    async def _version_unsupported(request, exc):  # noqa: ANN001
+        return JSONResponse(status_code=409, content={"detail": {"code": "PROJECT_VERSION_UNSUPPORTED", "message": str(exc)}})
+
+    @app.exception_handler(ProjectDatabaseCorruptError)
+    async def _db_corrupt(request, exc):  # noqa: ANN001
+        backups: list[dict] = []
+        pid = _pid(request)
+        if pid:
+            try:
+                backups = [b.model_dump() for b in list_project_backups(cfg.project_dir(pid) / "backups") if b.valid]
+            except Exception:
+                backups = []
+        logger.error("Damaged project %s: %s", pid, exc)
+        return JSONResponse(status_code=409, content={"detail": {
+            "code": "PROJECT_DB_CORRUPT",
+            "message": "This project's data is damaged and could not be opened. Your other projects are not affected. "
+                       "Restore one of the backups below.",
+            "technical": str(exc),
+            "backups": backups,
+        }})
+
+    @app.exception_handler(InvalidBackupError)
+    async def _invalid_backup(request, exc):  # noqa: ANN001
+        return JSONResponse(status_code=422, content={"detail": {"code": "BACKUP_INVALID", "message": str(exc)}})
 
     app.include_router(health.router)
     app.include_router(projects.router)

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Brain,
   Captions,
@@ -15,6 +15,8 @@ import { frameToMs, msToFrame } from '@/engine/evaluator';
 import { findScriptSceneById } from '@/engine/scriptEngine';
 import { tGlobal, useI18n } from '@/i18n/useLocaleStore';
 import { apiClient } from '@/services/apiClient';
+import { recoveryClient } from '@/services/recoveryClient';
+import { buildRecoveryPayload } from '@/engine/recoveryJournal';
 import { wsClient } from '@/services/wsClient';
 import { useAnimationExecStore } from '@/stores/useAnimationExecStore';
 import { useDirectorStore } from '@/stores/useDirectorStore';
@@ -42,6 +44,7 @@ import { StatusBar } from '@/components/layout/StatusBar';
 import { TopToolbar } from '@/components/layout/TopToolbar';
 import { AnimationExecutionModal } from '@/components/modals/AnimationExecutionModal';
 import { ExportModal } from '@/components/modals/ExportModal';
+import { RecoveryDialog } from '@/components/modals/RecoveryDialog';
 import { JobQueueDrawer } from '@/components/modals/JobQueueDrawer';
 import { ProjectManagerModal } from '@/components/modals/ProjectManagerModal';
 import { SceneExecutionPreviewModal } from '@/components/modals/SceneExecutionPreviewModal';
@@ -161,6 +164,7 @@ export function App() {
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const exportModalRequest = useJobStore((s) => s.exportModalRequest);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
@@ -187,6 +191,12 @@ export function App() {
         setShowProjectModal(true);
       }
       await wsClient.connect();
+      // Phase 09.3: offer crash-recovery data left by a previous session (never applied automatically)
+      try {
+        if ((await recoveryClient.list()).length > 0) setShowRecovery(true);
+      } catch {
+        // recovery storage unavailable — editing still works
+      }
     }
     void boot();
 
@@ -292,6 +302,74 @@ export function App() {
     }, 2200);
     return () => clearTimeout(timer);
   }, [project, isDirty]);
+
+  // Phase 09.3: a failed autosave used to wait for the next edit; retry with backoff instead.
+  const saveFailureCount = useProjectStore((s) => s.saveFailureCount);
+  const saveError = useProjectStore((s) => s.saveError);
+  const retryAttemptRef = useRef(0);
+  useEffect(() => {
+    if (!saveError) {
+      retryAttemptRef.current = 0;
+      return;
+    }
+    const st = useProjectStore.getState();
+    if (!st.project || !st.isDirty || !st.project.meta.auto_save_enabled) return;
+    const delay = Math.min(60_000, 5_000 * 2 ** retryAttemptRef.current);
+    const timer = window.setTimeout(() => {
+      retryAttemptRef.current += 1;
+      void useProjectStore.getState().saveProject(false).catch(() => {});
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [saveFailureCount, saveError]);
+
+  // Phase 09.3: changes that stay unsaved for a while are copied to crash-recovery storage.
+  const dirtySinceRef = useRef<number | null>(null);
+  useEffect(() => {
+    dirtySinceRef.current = isDirty ? (dirtySinceRef.current ?? Date.now()) : null;
+  }, [isDirty]);
+  useEffect(() => {
+    let lastJournal = 0;
+    const iv = window.setInterval(() => {
+      const st = useProjectStore.getState();
+      const since = dirtySinceRef.current;
+      if (!st.isDirty || since === null || st.isSaving) return;
+      const now = Date.now();
+      if (now - since >= 8_000 && now - lastJournal >= 15_000) {
+        lastJournal = now;
+        void st.writeRecoveryJournal(st.saveError ? 'save_failed' : 'unsaved');
+      }
+    }, 4_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Phase 09.3: save before the window closes (desktop) / keep recovery data (browser fallback).
+  useEffect(() => {
+    if (window.electronAPI?.onCloseRequested) {
+      return window.electronAPI.onCloseRequested(async () => {
+        const st = useProjectStore.getState();
+        const dirty = Boolean(st.project) && st.isDirty;
+        if (dirty && st.project && !st.project.meta.auto_save_enabled) {
+          if (!window.confirm(tGlobal('app.closeSavePrompt', { name: st.project.meta.name }))) {
+            if (window.confirm(tGlobal('app.closeDiscardPrompt'))) {
+              await st.writeRecoveryJournal('closed_without_saving');
+              return { ok: true };
+            }
+            return { ok: false, cancelled: true } as { ok: boolean; error?: string };
+          }
+        }
+        return st.flushBeforeClose();
+      });
+    }
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const st = useProjectStore.getState();
+      if (!st.project || !st.isDirty) return;
+      const payload = buildRecoveryPayload(st.project, st.syncSnapshot, 'page_unload');
+      if (payload) recoveryClient.writeSyncFallback(payload);
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
 
   // NLE Studio Keyboard Shortcuts (strictly guarded against interfering with text inputs!)
   useEffect(() => {
@@ -813,6 +891,7 @@ export function App() {
 
       {/* Modals, Context Menus & Notifications */}
       {showProjectModal && <ProjectManagerModal onClose={() => setShowProjectModal(false)} />}
+      {showRecovery && <RecoveryDialog onClose={() => setShowRecovery(false)} />}
       {(showExportModal || exportModalRequest) && (
         <ExportModal
           initialSettings={exportModalRequest?.settings ?? null}

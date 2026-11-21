@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timezone
 import shutil
+import sqlite3
 import threading
 import uuid
 from typing import Any, Callable
@@ -18,7 +20,11 @@ from database.backup import (
     restore_project_backup,
 )
 from database.connection import connect_sqlite, sqlite_transaction
-from database.project_migrations import init_project_db
+from database.project_migrations import (
+    ProjectDatabaseCorruptError,
+    forget_checked,
+    init_project_db,
+)
 from schemas.common import utc_now_iso
 from schemas.director import DirectorAnalysisDocument
 from schemas.job import JobStatus, RenderChunk, RenderJob
@@ -210,7 +216,17 @@ class ProjectRepository:
                     )
                 )
             except Exception as exc:
-                logger.warning("Skipping unreadable project dir %s: %s", child.name, exc)
+                # Phase 09.3: never hide a damaged project — list it so the user can restore a backup.
+                logger.warning("Project %s is unreadable: %s", child.name, exc)
+                st = db_path.stat()
+                ts = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat()
+                summaries.append(
+                    ProjectSummary(
+                        project_id=child.name, name=child.name, description="", width=1920, height=1080, fps=30,
+                        duration_ms=1, scene_count=0, created_at=ts, updated_at=ts,
+                        health="damaged", health_message="The project database cannot be read. Restore it from a backup.",
+                    )
+                )
 
         summaries.sort(key=lambda s: s.updated_at, reverse=True)
         return summaries
@@ -223,6 +239,25 @@ class ProjectRepository:
         # Ensure safe backward-compatible schema migration before reading
         init_project_db(db_path)
 
+        try:
+            meta_row, state_row, rev_rows = self._read_state_rows(db_path)
+        except sqlite3.DatabaseError as exc:
+            raise ProjectDatabaseCorruptError(f"Project database cannot be read: {exc}") from exc
+        revisions = {sec: 0 for sec in PROJECT_SECTIONS}
+        revisions.update({r["section"]: int(r["revision"]) for r in rev_rows})
+
+        if not meta_row or not state_row:
+            raise ProjectDatabaseCorruptError(f"Project database has no project data: {project_id}")
+
+        try:
+            return self._build_state(meta_row, state_row, revisions)
+        except Exception as exc:
+            raise ProjectDatabaseCorruptError(
+                f"Project data could not be read ({type(exc).__name__}: {str(exc)[:200]})"
+            ) from exc
+
+    @staticmethod
+    def _read_state_rows(db_path: Path):
         conn = connect_sqlite(db_path)
         try:
             meta_row = conn.execute("SELECT * FROM project_meta LIMIT 1").fetchone()
@@ -232,12 +267,9 @@ class ProjectRepository:
             rev_rows = conn.execute("SELECT section, revision FROM section_revisions").fetchall()
         finally:
             conn.close()
-        revisions = {sec: 0 for sec in PROJECT_SECTIONS}
-        revisions.update({r["section"]: int(r["revision"]) for r in rev_rows})
+        return meta_row, state_row, rev_rows
 
-        if not meta_row or not state_row:
-            raise RuntimeError(f"Corrupted project database: {project_id}")
-
+    def _build_state(self, meta_row, state_row, revisions) -> ProjectState:
         meta = ProjectMeta(
             project_id=meta_row["project_id"],
             name=meta_row["name"],
@@ -553,12 +585,58 @@ class ProjectRepository:
                     logger.warning("Project state listener failed: %s", exc)
         return updated_state
 
+    def duplicate_project(self, source_id: str, name: str, state_override: ProjectState | None = None) -> ProjectState:
+        """Save As: create an independent copy (new ID) of a project. The source is never modified.
+
+        Managed media (voice audio, imported sources, scripts) is copied; render temp files, exports
+        and backups are not. `state_override` (e.g. recovered unsaved edits) replaces the content.
+        """
+        source = self.get_project_state(source_id)  # validates the source first
+        src_dir = self.config.project_dir(source_id)
+        new_id = f"proj_{uuid.uuid4().hex[:12]}"
+        new_dir = self.config.ensure_project_layout(new_id)
+        try:
+            for sub in ("source", "scripts", "audio", "sound_effects", "timeline", "storyboard"):
+                if (src_dir / sub).is_dir():
+                    shutil.copytree(src_dir / sub, new_dir / sub, dirs_exist_ok=True)
+            src_con = sqlite3.connect(f"file:{src_dir / 'project.db'}?mode=ro", uri=True, timeout=10.0)
+            dst_con = sqlite3.connect(str(new_dir / "project.db"), timeout=10.0)
+            try:
+                src_con.backup(dst_con)
+            finally:
+                dst_con.close()
+                src_con.close()
+            with sqlite_transaction(new_dir / "project.db") as conn:
+                conn.execute("DELETE FROM render_chunks")
+                conn.execute("DELETE FROM jobs")  # render/export history belongs to the original
+                conn.execute("DELETE FROM project_meta")
+                conn.execute("DELETE FROM section_revisions")
+                conn.execute("UPDATE voice_audio_assets SET project_id = ?", (new_id,))
+            base = state_override if state_override is not None else source
+            # Project IDs are unique random tokens, so a textual swap re-homes every nested reference.
+            raw = base.model_dump_json(exclude={"revisions"}).replace(source_id, new_id)
+            st = ProjectState.model_validate_json(raw)
+            now = utc_now_iso()
+            st = st.model_copy(update={"meta": st.meta.model_copy(update={"name": name, "created_at": now, "updated_at": now})})
+            saved = self.save_project_state(st, create_backup=True, backup_tag="init")
+            logger.info("Duplicated project %s -> %s (%s)", source_id, new_id, name)
+            return saved
+        except Exception:
+            shutil.rmtree(new_dir, ignore_errors=True)  # never leave a half-created project behind
+            raise
+
     def delete_project(self, project_id: str) -> None:
         pdir = self.config.project_dir(project_id)
         if not pdir.is_dir():
             raise FileNotFoundError(f"Project not found: {project_id}")
-        shutil.rmtree(pdir)
-        logger.info("Deleted project %s", project_id)
+        # Phase 09.3: never destroy a project (and its backups) outright — move it to the workspace
+        # trash, from where it can be put back by moving the folder into projects/ again.
+        trash = self.config.workspace_dir / ".trash"
+        trash.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        shutil.move(str(pdir), str(trash / f"{project_id}__deleted_{stamp}"))
+        forget_checked(pdir / "project.db")
+        logger.info("Moved project %s to trash (%s)", project_id, trash)
 
     def create_backup(self, project_id: str, tag: str = "manual") -> BackupInfo:
         pdir = self.config.project_dir(project_id)
@@ -579,8 +657,13 @@ class ProjectRepository:
         pdir = self.config.project_dir(project_id)
         with self.project_lock(project_id):
             # Render/export history is not project *content*: keep jobs created after the backup.
-            current_jobs = self.list_jobs(project_id)
-            before = self.get_project_state(project_id).revisions
+            try:  # the current database may be the damaged thing we are restoring from
+                current_jobs = self.list_jobs(project_id)
+                before = self.get_project_state(project_id).revisions
+            except Exception as exc:
+                logger.warning("Restoring %s over an unreadable database: %s", project_id, exc)
+                current_jobs, before = [], {}
+            forget_checked(pdir / "project.db")
             restore_project_backup(
                 pdir / "project.db",
                 pdir / "backups",

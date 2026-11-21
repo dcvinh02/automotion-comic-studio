@@ -1,4 +1,6 @@
 import type {
+  ProjectIntegrityReport,
+  ProjectStorageInfo,
   ExportPlan,
   ExportSettings,
   FFmpegEnvironment,
@@ -249,10 +251,37 @@ class ApiClient {
     return this.request<BackupInfo[]>(`/api/v1/projects/${encodeURIComponent(projectId)}/backups`);
   }
 
-  createBackup(projectId: string): Promise<BackupInfo> {
-    return this.request<BackupInfo>(`/api/v1/projects/${encodeURIComponent(projectId)}/backups`, {
+  createBackup(projectId: string, tag: 'manual' | 'pre_recovery' = 'manual'): Promise<BackupInfo> {
+    return this.request<BackupInfo>(`/api/v1/projects/${encodeURIComponent(projectId)}/backups?tag=${tag}`, {
       method: 'POST',
     });
+  }
+
+  /** Save As / save recovered work as a new project (the source is never modified). */
+  duplicateProject(projectId: string, name: string, state?: ProjectState): Promise<ProjectState> {
+    return this.request<ProjectState>(`/api/v1/projects/${encodeURIComponent(projectId)}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ name, state: state ?? null }),
+    });
+  }
+
+  getProjectIntegrity(projectId: string): Promise<ProjectIntegrityReport> {
+    return this.request<ProjectIntegrityReport>(`/api/v1/projects/${encodeURIComponent(projectId)}/integrity`);
+  }
+
+  relinkAsset(projectId: string, fromAssetId: string, toAssetId: string): Promise<ProjectState> {
+    return this.request<ProjectState>(`/api/v1/projects/${encodeURIComponent(projectId)}/relink-asset`, {
+      method: 'POST',
+      body: JSON.stringify({ from_asset_id: fromAssetId, to_asset_id: toAssetId }),
+    });
+  }
+
+  getProjectStorage(projectId: string): Promise<ProjectStorageInfo> {
+    return this.request<ProjectStorageInfo>(`/api/v1/projects/${encodeURIComponent(projectId)}/storage`);
+  }
+
+  cleanupProjectStorage(projectId: string): Promise<{ removed_render_dirs: string[]; removed_partial_backups: number; freed_bytes: number }> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(projectId)}/storage/cleanup`, { method: 'POST' });
   }
 
   restoreBackup(projectId: string, filename: string): Promise<ProjectState> {

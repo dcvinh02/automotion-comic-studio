@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Brain,
   CheckCircle2,
   CircleDot,
@@ -58,6 +59,7 @@ export function TopToolbar({
   const isDirty = useProjectStore((s) => s.isDirty);
   const isSaving = useProjectStore((s) => s.isSaving);
   const lastSavedAt = useProjectStore((s) => s.lastSavedAt);
+  const saveError = useProjectStore((s) => s.saveError);
   const undoLen = useProjectStore((s) => s.undoStack.length);
   const redoLen = useProjectStore((s) => s.redoStack.length);
   const saveProject = useProjectStore((s) => s.saveProject);
@@ -94,9 +96,15 @@ export function TopToolbar({
 
         {project ? (
           <span
-            className={`save-status-pill ${isDirty ? 'dirty' : isSaving ? '' : 'saved'}`}
+            className={`save-status-pill ${saveError && isDirty ? 'dirty' : isDirty ? 'dirty' : isSaving ? '' : 'saved'}`}
+            role={saveError && isDirty ? 'button' : undefined}
+            style={saveError && isDirty ? { color: 'var(--danger-text)', borderColor: 'var(--danger-border)', cursor: 'pointer' } : undefined}
+            onClick={saveError && isDirty ? () => void useProjectStore.getState().saveProject(false).catch(() => {}) : undefined}
+            data-testid="save-status"
             title={
-              isSaving
+              saveError && isDirty
+                ? t('topbar.saveStatusFailed', { error: saveError })
+                : isSaving
                 ? t('topbar.saveStatusSaving')
                 : isDirty
                   ? t('topbar.saveStatusDirty')
@@ -107,7 +115,12 @@ export function TopToolbar({
                     : t('topbar.saveStatusNotPersisted')
             }
           >
-            {isSaving ? (
+            {saveError && isDirty && !isSaving ? (
+              <>
+                <AlertTriangle size={11} />
+                <span>{t('topbar.saveFailedShort')}</span>
+              </>
+            ) : isSaving ? (
               <>
                 <Loader2 size={11} className="spin" />
                 <span>{t('common.saving')}</span>
